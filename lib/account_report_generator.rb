@@ -20,28 +20,41 @@ class AccountReportGenerator
   end
 
   def monthly
-    analyzed_checking_statement = analyze_checking_statement
-    deposits = analyzed_checking_statement.deposits
-    non_cc_withdrawals = analyzed_checking_statement.non_cc_withdrawals
-    cc_purchases = calculate_cc_purchases
-    balance = deposits - (non_cc_withdrawals + cc_purchases)
-    date = Date.parse(@checking_statement.first[0])
-    [
+    months_years = @checking_statement.map do |transaction|
+      date = Date.parse(transaction[0])
       {
         year: date.year,
-        month: MONTHS[date.month],
-        balance: "$#{"%.2f" % balance}"
+        month: date.month
       }
-    ]
+    end
+
+    calculate_monthly_balances(months_years)
   end
 
   private
 
-  def analyze_checking_statement
+  def calculate_monthly_balances(months_years)
+    months_years.uniq.map do |statement|
+      analyzed_checking_statement = analyze_checking_statement(statement[:year], statement[:month])
+      deposits = analyzed_checking_statement.deposits
+      non_cc_withdrawals = analyzed_checking_statement.non_cc_withdrawals
+      cc_purchases = calculate_cc_purchases(statement[:year], statement[:month])
+      balance = deposits - (non_cc_withdrawals + cc_purchases)
+      {
+        year: statement[:year],
+        month: MONTHS[statement[:month]],
+        balance: "$#{"%.2f" % balance}"
+      }
+    end
+  end
+
+  def analyze_checking_statement(year, month)
     deposits = 0
     non_cc_withdrawals = 0
 
-    @checking_statement.each do |transaction|
+    monthly_statement = get_monthly_statement(year, month, @checking_statement)
+
+    monthly_statement.each do |transaction|
       deposit = transaction[2].gsub("$", "").to_i
       deposits += deposit
 
@@ -55,15 +68,25 @@ class AccountReportGenerator
     analyzed_checking_statement.new(deposits, non_cc_withdrawals)
   end
 
-  def calculate_cc_purchases
+  def calculate_cc_purchases(year, month)
     cc_purchases = 0
-    @credit_card_statement.each do |transaction|
+
+    monthly_statement = get_monthly_statement(year, month, @credit_card_statement)
+
+    monthly_statement.each do |transaction|
       transaction_amount = transaction[2].gsub("$", "").to_i
       if transaction_amount > 0
         cc_purchases += transaction_amount
       end
     end
     cc_purchases
+  end
+
+  def get_monthly_statement(year, month, statement)
+    statement.select do |transaction|
+      transaction_date = Date.parse(transaction[0])
+      transaction_date.year == year && transaction_date.month == month
+    end
   end
 
 end
