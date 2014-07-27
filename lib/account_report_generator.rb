@@ -55,11 +55,13 @@ class AccountReportGenerator
     monthly_statement = get_monthly_statement(year, month, @checking_statement)
 
     monthly_statement.each do |transaction|
-      deposit = transaction[2].gsub("$", "").to_i
-      deposits += deposit
+      if !transaction[2].nil?
+        deposit = transaction[2].gsub("$", "").gsub(",", "").to_f
+        deposits += deposit
+      end
 
-      if transaction[1] != "Payment CC"
-        non_cc_withdrawal = transaction[3].gsub("$", "").to_i
+      if transaction[1] != "Payment CC" && !transaction[3].nil?
+        non_cc_withdrawal = transaction[3].gsub("$", "").gsub(",", "").to_f
         non_cc_withdrawals += non_cc_withdrawal
       end
     end
@@ -74,7 +76,7 @@ class AccountReportGenerator
     monthly_statement = get_monthly_statement(year, month, @credit_card_statement)
 
     monthly_statement.each do |transaction|
-      transaction_amount = transaction[2].gsub("$", "").to_i
+      transaction_amount = transaction[2].gsub("$", "").gsub(",", "").to_f
       if transaction_amount > 0
         cc_purchases += transaction_amount
       end
